@@ -95,3 +95,7 @@ npx serve ui
 
 - Open:
 http://localhost:3000
+
+## How to generate tests
+- Navigate to /test-generator
+- run the command - npm run dev "YourRequirement"
