@@ -1,0 +1,14 @@
+{
+  "name": "ai-quality-engine",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test:generated": "cd test-generator && npx playwright test",
+    "analyze:failures": "cd flaky-analyzer && npm run analyze -- ../test-generator/test-results/results.json",
+    "qa:run": "npm run test:generated; npm run analyze:failures"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}

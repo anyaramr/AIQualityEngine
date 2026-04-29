@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AI Failure Report</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 32px;
+      background: #f7f7f7;
+    }
+
+    h1 {
+      margin-bottom: 16px;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    input {
+      padding: 10px;
+      width: 280px;
+    }
+
+    button {
+      padding: 10px 14px;
+      cursor: pointer;
+      border: none;
+      border-radius: 6px;
+      background: #333;
+      color: white;
+    }
+
+    button:hover {
+      background: #555;
+    }
+
+    .card {
+      background: white;
+      padding: 16px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      cursor: pointer;
+    }
+
+    .chart-card {
+      cursor: default;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 6px;
+      margin-right: 6px;
+      font-size: 12px;
+      background: #eee;
+    }
+
+    .badge.timeout { background: #ffb3b3; }
+    .badge.locator { background: #ffd9b3; }
+    .badge.assertion { background: #b3d9ff; }
+    .badge.navigation { background: #d6c3ff; }
+    .badge.authentication { background: #ffcce6; }
+    .badge.environment { background: #c7f0d8; }
+    .badge.unknown { background: #ddd; }
+
+    .details {
+      margin-top: 10px;
+      display: none;
+    }
+
+    pre {
+      background: #111;
+      color: #eee;
+      padding: 12px;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+
+    section {
+      margin-bottom: 24px;
+    }
+
+    canvas {
+      max-height: 320px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>AI Failure Report</h1>
+
+  <div class="toolbar">
+    <input id="search" placeholder="Search test..." />
+
+    <button onclick="render(fullReport.analyses)">All</button>
+    <button onclick="render(fullReport.analyses.filter(a => a.isLikelyFlaky))">
+      Flaky only
+    </button>
+    <button onclick="renderGroupedByType(fullReport.analyses)">
+      Group by type
+    </button>
+
+    <button onclick="sortBy('failureType')">Sort by type</button>
+    <button onclick="sortBy('confidence')">Sort by confidence</button>
+  </div>
+
+  <div id="summary"></div>
+
+  <div class="card chart-card">
+    <h2>Failure Type Chart</h2>
+    <canvas id="failureTypeChart"></canvas>
+  </div>
+
+  <div id="results"></div>
+
+  <script>
+    let fullReport = null;
+    let failureTypeChart = null;
+
+    function getBadgeClass(type) {
+      return (type || "unknown").toLowerCase();
+    }
+
+    function toggle(card) {
+      const details = card.querySelector(".details");
+      if (!details) return;
+
+      details.style.display =
+        details.style.display === "none" ? "block" : "none";
+    }
+
+    function render(analyses) {
+      const results = document.getElementById("results");
+
+      results.innerHTML = analyses.map(item => `
+        <div class="card" onclick="toggle(this)">
+          <h3>${item.testTitle}</h3>
+
+          <span class="badge ${getBadgeClass(item.failureType)}">${item.failureType}</span>
+          <span class="badge">confidence: ${item.confidence}</span>
+          <span class="badge">${item.isLikelyFlaky ? "flaky" : "not flaky"}</span>
+
+          <p><strong>Spec:</strong> ${item.specFile || "Unknown"}</p>
+
+          <div class="details">
+            <p><strong>Root cause:</strong> ${item.likelyRootCause}</p>
+            <p><strong>Why flaky or not:</strong> ${item.whyFlakyOrNot}</p>
+            <p><strong>Suggested fix:</strong> ${item.suggestedFix}</p>
+
+            <h4>Recommended code change</h4>
+            <pre>${item.recommendedCodeChange}</pre>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function groupByType(analyses) {
+      return analyses.reduce((acc, item) => {
+        const type = item.failureType || "unknown";
+        acc[type] = acc[type] || [];
+        acc[type].push(item);
+        return acc;
+      }, {});
+    }
+
+    function renderGroupedByType(analyses) {
+      const results = document.getElementById("results");
+      const grouped = groupByType(analyses);
+
+      results.innerHTML = Object.entries(grouped).map(([type, items]) => `
+        <section>
+          <h2>${type} (${items.length})</h2>
+          ${items.map(item => `
+            <div class="card" onclick="toggle(this)">
+              <h3>${item.testTitle}</h3>
+
+              <span class="badge ${getBadgeClass(item.failureType)}">${item.failureType}</span>
+              <span class="badge">confidence: ${item.confidence}</span>
+              <span class="badge">${item.isLikelyFlaky ? "flaky" : "not flaky"}</span>
+
+              <p><strong>Spec:</strong> ${item.specFile || "Unknown"}</p>
+
+              <div class="details">
+                <p><strong>Root cause:</strong> ${item.likelyRootCause}</p>
+                <p><strong>Why flaky or not:</strong> ${item.whyFlakyOrNot}</p>
+                <p><strong>Suggested fix:</strong> ${item.suggestedFix}</p>
+
+                <h4>Recommended code change</h4>
+                <pre>${item.recommendedCodeChange}</pre>
+              </div>
+            </div>
+          `).join("")}
+        </section>
+      `).join("");
+    }
+
+    function sortBy(key) {
+      const sorted = [...fullReport.analyses].sort((a, b) =>
+        (a[key] || "").toString().localeCompare((b[key] || "").toString())
+      );
+
+      render(sorted);
+    }
+
+    function renderFailureTypeChart(report) {
+      const labels = Object.keys(report.summary.byType);
+      const values = Object.values(report.summary.byType);
+
+      if (failureTypeChart) {
+        failureTypeChart.destroy();
+      }
+
+      failureTypeChart = new Chart(document.getElementById("failureTypeChart"), {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "Failures by Type",
+              data: values
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              display: true
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                precision: 0
+              }
+            }
+          }
+        }
+      });
+    }
+
+    fetch("/analysis-report.json")
+      .then(res => res.json())
+      .then(report => {
+        fullReport = report;
+
+        const counts = report.summary.byType;
+
+        document.getElementById("summary").innerHTML = `
+          <div class="card">
+            <h2>Summary</h2>
+            <p><strong>Total:</strong> ${report.summary.total}</p>
+            <p><strong>Flaky:</strong> ${report.summary.flaky}</p>
+            <p><strong>Non-flaky:</strong> ${report.summary.nonFlaky}</p>
+
+            <div>
+              ${Object.entries(counts).map(([k, v]) =>
+                `<span class="badge ${getBadgeClass(k)}">${k}: ${v}</span>`
+              ).join("")}
+            </div>
+          </div>
+        `;
+
+        renderFailureTypeChart(report);
+        render(report.analyses);
+      })
+      .catch(error => {
+        document.getElementById("results").innerHTML = `
+          <div class="card">
+            <h2>Error loading report</h2>
+            <p>${error.message}</p>
+          </div>
+        `;
+      });
+
+    document.getElementById("search").addEventListener("input", (e) => {
+      if (!fullReport) return;
+
+      const value = e.target.value.toLowerCase();
+
+      const filtered = fullReport.analyses.filter(item =>
+        item.testTitle.toLowerCase().includes(value)
+      );
+
+      render(filtered);
+    });
+  </script>
+</body>
+</html>
