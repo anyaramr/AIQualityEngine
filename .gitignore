@@ -1,0 +1,72 @@
+# =========================
+# Node / npm
+# =========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# Environment variables
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Build / output
+# =========================
+dist/
+build/
+out/
+
+# =========================
+# Playwright
+# =========================
+test-results/
+playwright-report/
+blob-report/
+report/
+*.zip
+*.trace
+
+# =========================
+# Generated files
+# =========================
+generated/
+analysis-report.json
+
+# If you prefer to keep UI working automatically, comment the line above
+# and ignore only root report:
+# /analysis-report.json
+
+# =========================
+# Logs
+# =========================
+logs/
+*.log
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# VSCode / IDE
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# TypeScript
+# =========================
+*.tsbuildinfo
+
+# =========================
+# Misc
+# =========================
+coverage/
+.cache/
+.tmp/
